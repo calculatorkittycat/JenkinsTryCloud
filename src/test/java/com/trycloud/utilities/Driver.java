@@ -1,75 +1,98 @@
 package com.trycloud.utilities;
 
+
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.safari.SafariDriver;
 
-/**
- * We wanted to have a class with that only return Single object
- * no matter how many time you asked for object
- * so we are creating this class with technic we learned from Singleton pattern
- */
+import java.net.URL;
+
 public class Driver {
+    static String browser;
 
-    private static WebDriver obj ;
+    private Driver() {
+    }
 
-    private Driver(){ }
+    private static WebDriver driver;
 
-    /**
-     * Return obj with only one WebDriver instance
-     * @return same WebDriver if exists , new one if null
-     */
-    public static WebDriver getDriver(){
-        // read the browser type you want to launch from properties file
-        String browserName = ConfigReader.read("browser") ;
-
-        if(obj == null){
-
-            // according to browser type set up driver correctly
-            switch (browserName ){
-                case "chrome" :
-                    WebDriverManager.chromedriver().setup();
-                    obj = new ChromeDriver();
-                    break;
-                case "firefox" :
-                    WebDriverManager.firefoxdriver().setup();
-                    obj = new FirefoxDriver();
-                    break;
-                // other browsers omitted
-                default:
-                    obj = null ;
-                    System.out.println("UNKNOWN BROWSER TYPE!!! " + browserName);
+    public static WebDriver getDriver() {
+        if (driver == null) {
+            if (System.getProperty("BROWSER") == null) {
+                browser = ConfigReader.read("browser");
+            } else {
+                browser = System.getProperty("BROWSER");
             }
-            return obj ;
+            System.out.println("Browser: " + browser);
+            switch (browser) {
+                case "remote-chrome":
+                    try {
+                        URL url = new URL("http://18.212.57.48:4444/wd/hub");
+                        DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
+                        desiredCapabilities.setBrowserName("chrome");
+                        driver = new RemoteWebDriver(url, desiredCapabilities);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case "chrome":
+                    WebDriverManager.chromedriver().setup();
+                    driver = new ChromeDriver();
+                    break;
+                case "chrome-headless":
+                    WebDriverManager.chromedriver().setup();
+                    driver = new ChromeDriver(new ChromeOptions().setHeadless(true));
+                    break;
+                case "firefox":
+                    WebDriverManager.firefoxdriver().setup();
+                    driver = new FirefoxDriver();
+                    break;
+                case "firefox-headless":
+                    WebDriverManager.firefoxdriver().setup();
+                    driver = new FirefoxDriver(new FirefoxOptions().setHeadless(true));
+                    break;
 
+                case "ie":
+                    if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                        throw new WebDriverException("Your operating system does not support the requested browser");
+                    }
+                    WebDriverManager.iedriver().setup();
+                    driver = new InternetExplorerDriver();
+                    break;
 
+                case "edge":
+                    if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                        throw new WebDriverException("Your operating system does not support the requested browser");
+                    }
+                    WebDriverManager.edgedriver().setup();
+                    driver = new EdgeDriver();
+                    break;
 
-        }else{
-//            System.out.println("You have it just use existing one");
-            return obj ;
-
+                case "safari":
+                    if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                        throw new WebDriverException("Your operating system does not support the requested browser");
+                    }
+                    WebDriverManager.getInstance(SafariDriver.class).setup();
+                    driver = new SafariDriver();
+                    break;
+            }
         }
 
+        return driver;
     }
 
-    /**
-     * Quitting the browser and setting the value of
-     * WebDriver instance to null because you can re-use already quitted driver
-     */
-    public static void closeBrowser(){
-
-        // check if we have WebDriver instance or not
-        // basically checking if obj is null or not
-        // if not null
-        // quit the browser
-        // make it null , because once quit it can not be used
-        if(obj != null ){
-            obj.quit();
-            // so when ask for it again , it gives us not quited fresh driver
-            obj = null ;
+    public static void closeBrowser() {
+        if (driver != null) {
+            driver.quit();
+            driver = null;
         }
-
     }
-
 }
